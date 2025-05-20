@@ -6,10 +6,11 @@ import SendIcon from '@mui/icons-material/Send';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
+import HelpIcon from '@mui/icons-material/Help';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import EventSeatIcon from '@mui/icons-material/EventSeat';
+import MapIcon from '@mui/icons-material/Map';
+import ChatIcon from '@mui/icons-material/Chat';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import agnryGif from '../src/angry.gif';
 import './App.scss';
@@ -38,7 +39,6 @@ const App = () => {
   const [userName, setUserName] = useState('');
   const [reminders, setReminders] = useState([]);
   const messagesEndRef = useRef(null);
-  const isProcessing = useRef(false);
 
   const commands = [
     {
@@ -61,34 +61,31 @@ const App = () => {
   };
 
   useEffect(() => {
-  // Initial greeting - only run once on mount
-  setMessages([{ text: 'Hello! Welcome to Medisco Hospital. How can I assist you today?', sender: 'bot' }]);
-  
-  // Fetch initial data
-  const fetchData = async () => {
-    await fetchDoctors();
-    await fetchDepartments();
-    await checkAppointmentReminders();
-  };
-  fetchData();
-  
-  // Set up interval for reminders
-  const reminderInterval = setInterval(() => {
-    checkReminders();
-  }, 60000); // Check every minute
+    // Initial greeting
+    setMessages([{ text: 'Hello! Welcome to Medisco Hospital. How can I assist you today?', sender: 'bot' }]);
+    
+    // Fetch initial data
+    fetchDoctors();
+    fetchDepartments();
+    checkAppointmentReminders();
+    
+    // Set up interval for reminders
+    const reminderInterval = setInterval(() => {
+      checkReminders();
+    }, 60000); // Check every minute
 
-  return () => clearInterval(reminderInterval);
-}, []); 
+    return () => clearInterval(reminderInterval);
+  }, []);
 
   useEffect(() => {
-  if (transcript) {
-    setInput(transcript);
-  }
-}, [transcript]);
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
 
   useEffect(() => {
-  scrollToBottom();
-}, [messages]);
+    scrollToBottom();
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -116,33 +113,20 @@ const App = () => {
     setInput(e.target.value);
   };
 
-const checkAppointmentReminders = async () => {
-  try {
-    const response = await axios.get('http://localhost:5000/api/appointments/reminders');
-    if (response.data.length > 0) {
-      const reminder = response.data[0];
-      // Only update if we don't already have this reminder
-      setMessages(prev => {
-        const lastMessage = prev[prev.length - 1];
-        if (lastMessage.text.includes(reminder.patient_name)) {
-          return prev;
-        }
-        return [
-          ...prev,
-          {
-            text: `Hi ${reminder.patient_name}! Friendly reminder: Your appointment with ${reminder.doctor_name} is on ${reminder.appointment_date} at ${reminder.appointment_time}.`,
-            sender: 'bot'
-          }
-        ];
-      });
-
-      if (!userName) setUserName(reminder.patient_name);
+  const checkAppointmentReminders = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/appointments/reminders');
+      if (response.data.length > 0) {
+        const reminder = response.data[0]; // Get the first upcoming appointment
+        setMessages(prev => [...prev, 
+          { text: `Hi ${reminder.patient_name}! Friendly reminder: Your appointment with Dr. ${reminder.doctor_name} is on ${reminder.appointment_date} at ${reminder.appointment_time}.`, sender: 'bot' }
+        ]);
+        if (!userName) setUserName(reminder.patient_name);
+      }
+    } catch (error) {
+      console.error('Error checking appointment reminders:', error);
     }
-  } catch (error) {
-    console.error('Error checking appointment reminders:', error);
-  }
-};
-
+  };
 
   const checkReminders = () => {
     const now = new Date();
@@ -156,34 +140,23 @@ const checkAppointmentReminders = async () => {
       }
     });
   };
-  const [isLoading, setIsLoading] = useState(false);
 
-const handleSendMessage = async () => {
-  if (!input.trim() || isLoading) return;
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
 
-  setIsLoading(true);
-  isProcessing.current = true;
-
-  setInput('');
-  try {
     // Add user message to chat
     const userMessage = { text: input, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
     
     // Extract name if not already set
-    if (!userName && (input.toLowerCase().includes('my name is') || input.toLowerCase().includes('i am') || input.toLowerCase().includes("i'm"))) {
+    if (!userName && (input.toLowerCase().includes('my name is') || input.toLowerCase().includes('i am'))) {
       const nameMatch = input.match(/(?:my name is|i am|i'm)\s+([^\s,.]+)/i);
       if (nameMatch && nameMatch[1]) {
-        const newName = nameMatch[1];
-        setUserName(newName);
-        setMessages(prev => [
-          ...prev,
-          { text: `Hello ${newName}!`, sender: 'bot' }
-        ]);
+        setUserName(nameMatch[1]);
       }
     }
-
-
+    
+    setInput('');
 
     // Handle small talk and common phrases first
     const smallTalkResponse = handleSmallTalk(input);
@@ -192,37 +165,29 @@ const handleSendMessage = async () => {
       return;
     }
 
-    // Handle appointment recall
-    if (input.toLowerCase().includes('when is my appointment') || 
-        input.toLowerCase().includes('my appointment details') ||
-        input.toLowerCase().includes('do i have an appointment')) {
-      await handleAppointmentRecall();
-      return;
-    }
-
     // Handle goodbye
     if (input.toLowerCase().includes('bye') || input.toLowerCase().includes('goodbye')) {
       const goodbyeMessage = userName 
-        ? `Goodbye, ${userName}! Have a great day.` 
-        : 'Goodbye! Have a great day.';
+        ? `Goodbye, ${userName}! Have a great day. Feel free to come back if you need anything.` 
+        : 'Goodbye! Have a great day. Feel free to come back if you need anything.';
       setMessages(prev => [...prev, { text: goodbyeMessage, sender: 'bot' }]);
       return;
     }
 
     // Handle doctor availability queries
-    const doctorAvailabilityMatch = input.match(/(?:is\s+)?dr\.?\s*(\w+)\s+(available|free)\s*(today|tomorrow|\w+day)?/i);
+    const doctorAvailabilityMatch = input.match(/(is\s+dr\.?\s+(\w+)\s+available\s+(today|tomorrow))/i);
     if (doctorAvailabilityMatch) {
-      const doctorName = doctorAvailabilityMatch[1];
-      const day = doctorAvailabilityMatch[3] || 'today';
-      await handleDoctorAvailabilityQuery(doctorName, day);
+      const doctorName = doctorAvailabilityMatch[2];
+      const day = doctorAvailabilityMatch[3];
+      handleDoctorAvailabilityQuery(doctorName, day);
       return;
-    } // This closing brace was missing
+    }
 
     // Handle best specialist queries
     if (input.toLowerCase().includes('best') && input.toLowerCase().match(/(neurologist|cardiologist|pediatrician|orthopedic)/i)) {
       const specialtyMatch = input.match(/(neurologist|cardiologist|pediatrician|orthopedic)/i);
       if (specialtyMatch) {
-        await handleBestSpecialistQuery(specialtyMatch[0]);
+        handleBestSpecialistQuery(specialtyMatch[0]);
       }
       return;
     }
@@ -312,33 +277,22 @@ const handleSendMessage = async () => {
     }
 
     // Save chat history to database
-    await axios.post('http://localhost:5000/api/chat-history', {
-      user_input: input,
-      bot_response: botResponse.text
-    });
+    try {
+      await axios.post('http://localhost:5000/api/chat-history', {
+        user_input: input,
+        bot_response: botResponse.text
+      });
+    } catch (error) {
+      console.error('Error saving chat history:', error);
+    }
 
     // Add bot response to chat
-    setMessages(prev => [...prev, botResponse]);
-
-  } catch (error) {
-    console.error('Error handling message:', error);
-    setMessages(prev => [
-      ...prev,
-      { 
-       text: (
-              <>
-                <p>Ask proper questions!</p>
-                <img src={agnryGif} alt="Angry Bot" style={{ height: '70px', width: '70px' }} />
-              </>
-            ) ,
-        sender: 'bot' 
-      }
-    ]);
-  } finally {
-    setIsLoading(false);
-    isProcessing.current = false;
-  }
-};
+    if (botResponse) {
+      setTimeout(() => {
+        setMessages(prev => [...prev, botResponse]);
+      }, 500);
+    }
+  };
 
   const handleSmallTalk = (input) => {
     const lowerInput = input.toLowerCase();
@@ -360,116 +314,32 @@ const handleSendMessage = async () => {
     }
     
     if (lowerInput.includes('hi') || lowerInput.includes('hello') || lowerInput.includes('hey')) {
-  const greetings = userName 
-    ? [
-        `Hello again, ${userName}! How can I help you today?`,
-        `Nice to see you back, ${userName}! What can I do for you?`,
-        `Hey ${userName}! Need any assistance today?`
-      ]
-    : [
-        "Hello there! How can I assist you today?",
-        "Hi! What can I do for you today?",
-        "Hey! How may I help you?"
-      ];
-
-  return greetings[Math.floor(Math.random() * greetings.length)];
-}
+      return userName ? `Hello again, ${userName}! How can I help you today?` : "Hello there! How can I assist you today?";
+    }
     
     return null;
   };
 
-const handleDoctorAvailabilityQuery = async (doctorName, day) => {
-  try {
-    // First try to find the doctor by exact name match
-    let doctor = doctors.find(d => 
-      d.name.toLowerCase().includes(doctorName.toLowerCase())
-    );
-
-    // If not found, try to find by specialization
-    if (!doctor) {
-      const specialtyMatch = doctorName.match(/(neurologist|cardiologist|pediatrician|orthopedic)/i);
-      if (specialtyMatch) {
-        const specialists = doctors.filter(d => 
-          d.specialization.toLowerCase().includes(specialtyMatch[0].toLowerCase())
-        ).sort((a, b) => b.rating - a.rating);
+  const handleDoctorAvailabilityQuery = async (doctorName, day) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/doctors/availability?name=${doctorName}&day=${day}`);
+      const doctor = response.data;
+      
+      if (doctor) {
+        let availabilityMessage = `Dr. ${doctor.name} is ${doctor.available_days.includes(day) ? 'available' : 'not available'} ${day}. `;
+        availabilityMessage += `Specialty: ${doctor.specialization}. `;
+        availabilityMessage += `Available times: ${doctor.available_times}.`;
         
-        if (specialists.length > 0) {
-          doctor = specialists[0];
-        }
+        setMessages(prev => [...prev, { text: availabilityMessage, sender: 'bot' }]);
+      } else {
+        setMessages(prev => [...prev, { text: `Sorry, I couldn't find information about Dr. ${doctorName}.`, sender: 'bot' }]);
       }
+    } catch (error) {
+      console.error('Error checking doctor availability:', error);
+      setMessages(prev => [...prev, { text: 'Sorry, I encountered an error checking availability.', sender: 'bot' }]);
     }
+  };
 
-    if (doctor) {
-      // Prepare base availability message
-      let availabilityMessage = ` ${doctor.name} is `;
-      
-      // Process available days
-      const availableDays = doctor.available_days.toLowerCase().split(',').map(d => d.trim());
-      const requestedDay = day.toLowerCase();
-      
-      // Get today's and tomorrow's weekday names
-      const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-      const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-
-      // Check availability
-      const isAvailable = availableDays.some(d =>
-        d.includes(requestedDay) ||
-        (requestedDay === 'today' && d.includes(today)) ||
-        (requestedDay === 'tomorrow' && d.includes(tomorrow))
-      );
-
-      // Build the availability message
-      availabilityMessage += isAvailable ? 'available' : 'not available';
-      availabilityMessage += ` ${day}. `;
-      availabilityMessage += `Specialty: ${doctor.specialization}. `;
-      availabilityMessage += `Available times: ${doctor.available_times}.`;
-
-      // Create messages array with user's message and initial bot response
-      const updatedMessages = [
-        ...messages,
-        { text: availabilityMessage, sender: 'bot' }
-      ];
-
-      // Add follow-up question if available
-      if (isAvailable) {
-        const followUpMessage = `Would you like to book an appointment with ${doctor.name}?`;
-        updatedMessages.push({ text: followUpMessage, sender: 'bot' });
-        
-        // Update appointment data without causing extra renders
-        setAppointmentData(prev => ({
-          ...prev,
-          doctorId: doctor.id,
-          doctorName: doctor.name  // Add doctor name for reference
-        }));
-      }
-
-      // Single state update for all messages
-      setMessages(updatedMessages);
-      
-    } else {
-      // Doctor not found case
-      const notFoundMessages = [
-        ...messages,
-        { text: `Sorry, I couldn't find information about ${doctorName}.`, sender: 'bot' },
-        { text: 'Here are our specialists:', sender: 'bot' }
-      ];
-      
-      setMessages(notFoundMessages);
-      setActiveFeature('doctor');
-    }
-  } catch (error) {
-    console.error('Error checking doctor availability:', error);
-    
-    // Error message that preserves chat history
-    setMessages(prev => [
-      ...prev,
-      { 
-        text: 'Sorry, I encountered an error checking availability. Please try again later.', 
-        sender: 'bot' 
-      }
-    ]);
-  }
-};
   const handleBestSpecialistQuery = (specialty) => {
     const specialists = doctors.filter(doctor => 
       doctor.specialization.toLowerCase().includes(specialty.toLowerCase())
@@ -477,7 +347,7 @@ const handleDoctorAvailabilityQuery = async (doctorName, day) => {
     
     if (specialists.length > 0) {
       const bestDoctor = specialists[0];
-      let response = `Our top ${specialty} is ${bestDoctor.name} `;
+      let response = `Our top ${specialty} is Dr. ${bestDoctor.name} `;
       response += `(Rating: ${bestDoctor.rating}/5). `;
       response += `Available: ${bestDoctor.available_days} at ${bestDoctor.available_times}. `;
       response += `Would you like to book an appointment?`;
@@ -492,7 +362,7 @@ const handleDoctorAvailabilityQuery = async (doctorName, day) => {
     switch (action) {
       case 'call':
         setMessages(prev => [...prev, 
-          { text: 'Calling hospital reception at +94 123-4567', sender: 'bot' }
+          { text: 'Calling hospital reception at +1 (555) 123-4567', sender: 'bot' }
         ]);
         // In a real app, you might use window.location.href = 'tel:+15551234567'
         break;
@@ -503,7 +373,7 @@ const handleDoctorAvailabilityQuery = async (doctorName, day) => {
         break;
       case 'directions':
         setMessages(prev => [...prev, 
-          { text: 'Medisco Hospital is located at 123 Health Street, Medical City. Here are directions: https://maps.app.goo.gl/MwBnmwnMEiEzxVKu9', sender: 'bot' }
+          { text: 'Medisco Hospital is located at 123 Health Street, Medical City. Here are directions: https://maps.google.com/?q=Medisco+Hospital', sender: 'bot' }
         ]);
         break;
       default:
@@ -587,21 +457,11 @@ const handleAppointmentSubmit = async () => {
 
     const response = await axios.post('http://localhost:5000/api/appointments', appointmentPayload);
     
-        setMessages(prev => [...prev, 
-      { text: `Appointment booked successfully for ${formattedDate} at ${appointmentData.time} with ${
+    setMessages(prev => [...prev, 
+      { text: `Appointment booked successfully for ${formattedDate} at ${appointmentData.time} with Dr. ${
         doctors.find(d => d.id.toString() === appointmentData.doctorId.toString())?.name || ''
       }`, sender: 'bot' }
     ]);
-    setAppointmentData(prev => ({
-      ...prev,
-      name: prev.name, // Keep the name
-      email: prev.email, // Keep the email
-      // Don't clear these fields as they might be needed for recall
-    }));
-
-    if (!userName) {
-      setUserName(appointmentData.name);
-    }
     
     // Reset form
     setActiveFeature(null);
@@ -634,49 +494,6 @@ const handleAppointmentSubmit = async () => {
       console.error('Error checking symptoms:', error);
     }
   };
-
-
-  // Add this function to your component
-const handleAppointmentRecall = async () => {
-  try {
-    if (!appointmentData.email && !userName) {
-      setMessages(prev => [...prev, 
-        { text: "I don't have your information. Please provide your email or name to check appointments.", sender: 'bot' }
-      ]);
-      return;
-    }
-
-    const response = await axios.get('http://localhost:5000/api/appointments/latest', {
-      params: {
-        email: appointmentData.email,
-        name: userName
-      }
-    });
-
-    if (response.data) {
-      const appointment = response.data;
-      setMessages(prev => [...prev, 
-        { text: `Your appointment is with  ${appointment.doctor_name} on ${appointment.appointment_date} at ${appointment.appointment_time}.`, sender: 'bot' }
-      ]);
-    } else {
-      setMessages(prev => [...prev, 
-        { text: "I couldn't find any upcoming appointments for you. Would you like to book one?", sender: 'bot' }
-      ]);
-    }
-  } catch (error) {
-    console.error('Error fetching appointment:', error);
-    setMessages(prev => [...prev, 
-      { text: "Sorry, I couldn't retrieve your appointment details. Please try again later.", sender: 'bot' }
-    ]);
-  }
-};
-/* const doctorAvailabilityMatch = input.match(/(?:is\s+)?dr\.?\s*(\w+)\s+(available|free)\s*(today|tomorrow|\w+day)?/i);
-if (doctorAvailabilityMatch) {
-  const doctorName = doctorAvailabilityMatch[1];
-  const day = doctorAvailabilityMatch[3] || 'today';
-  handleDoctorAvailabilityQuery(doctorName, day);
-  return;
-} */
 
   const renderFeature = () => {
     switch (activeFeature) {
@@ -758,13 +575,13 @@ if (doctorAvailabilityMatch) {
             <div className="doctor-grid">
               {doctors.map(doctor => (
                 <div key={doctor.id} className="doctor-card">
-                  <h4> {doctor.name}</h4>
+                  <h4>Dr. {doctor.name}</h4>
                   <p>Specialty: {doctor.specialization}</p>
                   <p>Rating: {doctor.rating}/5</p>
                   <p>Available: {doctor.available_days} at {doctor.available_times}</p>
                   <button onClick={() => {
                     setMessages(prev => [...prev, 
-                      { text: `Would you like to book an appointment with ${doctor.name}?`, sender: 'bot' }
+                      { text: `Would you like to book an appointment with Dr. ${doctor.name}?`, sender: 'bot' }
                     ]);
                     setAppointmentData(prev => ({...prev, doctorId: doctor.id}));
                     setActiveFeature('appointment');
@@ -819,7 +636,7 @@ if (doctorAvailabilityMatch) {
           <div className="input-area">
             <div className="quick-actions">
               <button onClick={() => setActiveFeature('appointment')} title="Book Appointment">
-                <EventSeatIcon/>
+                <ScheduleIcon />
               </button>
               <button onClick={() => setActiveFeature('doctor')} title="Find a Doctor">
                 <PersonSearchIcon />
@@ -834,14 +651,14 @@ if (doctorAvailabilityMatch) {
                 <EmailIcon />
               </button>
               <button onClick={() => handleQuickAction('directions')} title="Get Directions">
-                <LocationOnIcon />
+                <MapIcon />
               </button>
               <button onClick={() => {
                 setMessages(prev => [...prev, 
                   { text: 'Our general visiting hours are from 8:00 AM to 8:00 PM daily.', sender: 'bot' }
                 ]);
               }} title="Visiting Hours">
-                <ScheduleIcon />
+                <HelpIcon />
               </button>
             </div>
             
