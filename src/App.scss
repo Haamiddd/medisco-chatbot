@@ -5,13 +5,15 @@ $text-color: #333;
 $bot-bg: #f1f1f1;
 $user-bg: #e3f2fd;
 
+
+
+
 .app {
   display: flex;
-  flex-direction: column;
-  min-height: 100vh;
   font-family: 'Arial', sans-serif;
   color: $text-color;
   background-image: url('./bg2.jpg');
+  padding-top: 80px; 
 
   .app-header {
     background-color: $primary-color;
@@ -34,7 +36,7 @@ $user-bg: #e3f2fd;
     max-width: 1100px;
     margin: 0 auto;
     width: 100%;
-    height: calc(100vh - 60px);
+    height: calc(95vh - 60px);
 
     .messages {
   flex: 1;
@@ -47,14 +49,43 @@ $user-bg: #e3f2fd;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  font-size:x-large;
+  font-size: large;
+
+  .message-container {
+    display: flex;
+    align-items: flex-start;
+    max-width: 100%;
+
+    &.bot {
+      align-self: flex-start;
+      
+      .message-icon {
+        margin-right: 0.75rem;
+        color:$bot-bg;
+        flex-shrink: 0;
+        
+      }
+    }
+
+    &.user {
+      align-self: flex-end;
+     
+      
+      .message-icon {
+        margin-left: 0.75rem;
+        color:$primary-color;
+        flex-shrink: 0;
+        
+      }
+    }
+  }
 
   .message {
     display: inline-block;
-    max-width: 75%; // limit to avoid overly wide bubbles
-    padding: 0.75rem 1rem;
+    max-width: 75%;
+    padding: 0.7rem;
     border-radius: 18px;
-    line-height: 1.4;
+    line-height: 1;
     position: relative;
     word-wrap: break-word;
     word-break: break-word;
@@ -62,15 +93,13 @@ $user-bg: #e3f2fd;
 
     &.bot {
       background-color: $bot-bg;
-      border-bottom-left-radius: 4px;
-      align-self: flex-start;
+      border-top-left-radius: 4px;
     }
 
     &.user {
       background-color: $primary-color;
       color: $secondary-color;
-      border-bottom-right-radius: 4px;
-      align-self: flex-end;
+      border-top-right-radius: 4px;
     }
   }
 }
@@ -268,3 +297,46 @@ $user-bg: #e3f2fd;
     transform: scale(1);
   }
 }
+
+///  app header
+/// 
+/// 
+// In your App.scss
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 15px 20px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.header-title {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.header-title h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+
+.avatar {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  margin-top: 50px;
+  margin-left: 60px;
+  position: fixed;
+}
+
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
