@@ -340,8 +340,11 @@ const App = () => {
       return "You're welcome! Is there anything else I can help you with?";
     }
     
-    if (lowerInput.includes('Medisco Hospital')||lowerInput.includes('location')) {
+    if (lowerInput.includes('location')) {
       return "Medisco Hospital is located at 123 Health Street, Medical City. Here are directions: https://maps.app.goo.gl/MwBnmwnMEiEzxVKu9";
+    }
+    if (lowerInput.includes('Hospital')) {
+      return "Medisco Hospital is located at 123 Health Street, Medical City.Here are directions: https://maps.app.goo.gl/MwBnmwnMEiEzxVKu9";
     }
     if (lowerInput.includes('hi') || lowerInput.includes('hello') || lowerInput.includes('hey')) {
       const greetings = userName 
@@ -632,7 +635,7 @@ if (doctorAvailabilityMatch) {
             setCurrentEmotion('angry');
           }
         } else {
-          botResponse = { text: 'i am here to help with edisco ', sender: 'bot' };
+          botResponse = { text: 'I can help with appointments, doctor information, symptoms checking, and general hospital information. What do you need?', sender: 'bot' };
           setIrrelevantCount(0);
         }
       }
