@@ -28,7 +28,6 @@ if (!SpeechRecognition.browserSupportsSpeechRecognition()) {
 
 const App = () => {
   // State declarations
-  const [currentEmotion, setCurrentEmotion] = useState('neutral');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -65,6 +64,7 @@ const App = () => {
     neutral: neutralFace,
     angry: angryFace
   };
+  const [currentEmotion, setCurrentEmotion] = useState('neutral');
 
   // Speech recognition commands
   const commands = [
@@ -77,24 +77,25 @@ const App = () => {
   const { transcript, resetTranscript } = useSpeechRecognition({ commands });
 
   // Update emotion based on message content
-  const updateEmotion = (message) => {
+/* const updateEmotion = (message) => {
     if (!message) return;
     
     const messageStr = typeof message === 'string' ? message : 
-                     (message.text && typeof message.text === 'string' ? message.text : '');
+                     (message.text && typeof message.text === 'string' ? message.text : '').toLowerCase();
     
-    if (messageStr.includes('🚨 URGENT') || messageStr.includes('⚠️ IMPORTANT') || 
-        messageStr.includes('Ask proper questions') || messageStr.includes('Sorry, I encountered an error')) {
+    if (messageStr.includes('🚨 urgent') || messageStr.includes('⚠️ important') || 
+        messageStr.includes('ask proper questions') || messageStr.includes('sorry, i encountered an error')) {
       setCurrentEmotion('angry');
-    } else if (messageStr.includes('successfully') || messageStr.includes('Great') || 
-               messageStr.includes('Welcome') || messageStr.includes('Hello') || 
-               messageStr.includes('Hi') || messageStr.includes('Thank you')) {
+    } else if (messageStr.includes('successfully') || messageStr.includes('great') || 
+               messageStr.includes('welcome') || messageStr.includes('hello') || 
+               messageStr.includes('hi') || messageStr.includes('thank you') || 
+               messageStr.includes('tell me a joke')) {
       setCurrentEmotion('happy');
     } else {
       setCurrentEmotion('neutral');
     }
-  };
-
+};
+ */
   // Symptom checker function
   const handleSymptomCheck = async (symptoms) => {
     try {
@@ -328,7 +329,8 @@ const App = () => {
       return "I'm just a bot, but I'm functioning well! How can I assist you today?";
     }
     
-    if (lowerInput.includes('tell me a joke')) {
+     if (lowerInput.includes('tell me a joke')) {
+      updateEmotion('happy'); // Explicitly set emotion for jokes
       return "Why don't skeletons fight each other? They don't have the guts!";
     }
     
@@ -340,19 +342,17 @@ const App = () => {
       return "You're welcome! Is there anything else I can help you with?";
     }
     
-    if (lowerInput.includes('location')) {
+    if (lowerInput.includes('location') || lowerInput.includes('hospital')) {
       return "Medisco Hospital is located at 123 Health Street, Medical City. Here are directions: https://maps.app.goo.gl/MwBnmwnMEiEzxVKu9";
     }
-    if (lowerInput.includes('Hospital')) {
-      return "Medisco Hospital is located at 123 Health Street, Medical City.Here are directions: https://maps.app.goo.gl/MwBnmwnMEiEzxVKu9";
-    }
+    
     if (lowerInput.includes('hi') || lowerInput.includes('hello') || lowerInput.includes('hey')) {
       const greetings = userName 
         ? [
             `Hello again, ${userName}! How can I help you today?`,
             `Nice to see you back, ${userName}! What can I do for you?`,
             `Hey ${userName}! Need any assistance today?`,
-            `Good day$ {userName}! How can I be of service to you?`,
+            `Good day ${userName}! How can I be of service to you?`,
             `Hi ${userName}! What brings you here today?`
           ]
         : [
@@ -367,7 +367,25 @@ const App = () => {
     }
     
     return null;
-  };
+};
+const updateEmotion = (message) => {
+    if (!message) return;
+    
+    const messageStr = typeof message === 'string' ? message.toLowerCase() : 
+                     (message.text && typeof message.text === 'string' ? message.text.toLowerCase() : '');
+    
+    if (messageStr.includes('🚨 urgent') || messageStr.includes('⚠️ important') || 
+        messageStr.includes('ask proper questions') || messageStr.includes('sorry, i encountered an error')) {
+      setCurrentEmotion('angry');
+    } else if (messageStr.includes('successfully') || messageStr.includes('great') || 
+               messageStr.includes('welcome') || messageStr.includes('hello') || 
+               messageStr.includes('hi') || messageStr.includes('thank you') || 
+               messageStr.includes('tell me a joke') || messageStr.includes('why don\'t skeletons')) {
+      setCurrentEmotion('happy');
+    } else {
+      setCurrentEmotion('neutral');
+    }
+};
 
   // When saving & fetching
   // Main message handler
@@ -379,7 +397,13 @@ const App = () => {
 
     const userInput = input;
     setInput('');
-    
+
+    /* const smallTalkResponse = handleSmallTalk(userInput);
+if (smallTalkResponse) {
+    const botResponse = { text: smallTalkResponse, sender: 'bot' };
+    setMessages(prev => [...prev, botResponse]);
+    return; // Make sure to return here to prevent further processing
+} */
     // Update emotion based on user input
     if (userInput.toLowerCase().match(/(stupid|idiot|useless|hate|angry)/)) {
       setCurrentEmotion('angry');
