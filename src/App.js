@@ -25,6 +25,7 @@ if (!SpeechRecognition.browserSupportsSpeechRecognition()) {
   console.log('Your browser does not support speech recognition');
 }
 
+
 const App = () => {
   // State declarations
   const [currentEmotion, setCurrentEmotion] = useState('neutral');
@@ -47,6 +48,12 @@ const App = () => {
   const [userName, setUserName] = useState('');
   const [reminders, setReminders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  //
+
+  const [teachingMode, setTeachingMode] = useState({
+    active: false,
+    currentQuestion: ''
+});
   
   // Refs
   const messagesEndRef = useRef(null);
@@ -245,6 +252,69 @@ const App = () => {
     });
   };
 
+  const handleUserMessage = async (userInput) => {
+    // Check if in teaching mode
+    if (teachingMode.active) {
+        // Store the answer
+        try {
+            await axios.post('/api/learned-facts', {
+                question: teachingMode.currentQuestion,
+                answer: userInput
+            });
+            
+            const thankYouMessage = {
+                text: `Thanks! I've learned that the answer to "${teachingMode.currentQuestion}" is "${userInput}".`,
+                sender: 'bot'
+            };
+            setMessages(prev => [...prev, thankYouMessage]);
+        } catch (error) {
+            const errorMessage = {
+                text: "I couldn't save that information. Please try again.",
+                sender: 'bot'
+            };
+            setMessages(prev => [...prev, errorMessage]);
+        }
+        
+        setTeachingMode({ active: false, currentQuestion: '' });
+        return;
+    }
+
+    // Check for known facts
+    if (userInput.toLowerCase().endsWith('?')) {
+        try {
+            const response = await axios.get('/api/learned-facts', {
+                params: { question: userInput }
+            });
+            
+            if (response.data.answer) {
+                const answerMessage = {
+                    text: `The answer is: ${response.data.answer}`,
+                    sender: 'bot'
+                };
+                setMessages(prev => [...prev, answerMessage]);
+                return;
+            }
+        } catch (error) {
+            // Proceed to teaching mode if question not found
+        }
+
+        // If question unknown
+        const teachMeMessage = {
+            text: "I don't know the answer to that. Can you teach me? Please provide the answer.",
+            sender: 'bot'
+        };
+        setMessages(prev => [...prev, teachMeMessage]);
+        setTeachingMode({
+            active: true,
+            currentQuestion: userInput
+        });
+        return;
+    }
+
+    // Rest of your existing message handling...
+};
+
+
   // Input change handler
   const handleInputChange = (e) => {
     setInput(e.target.value);
@@ -270,17 +340,24 @@ const App = () => {
       return "You're welcome! Is there anything else I can help you with?";
     }
     
+    if (lowerInput.includes('Medisco Hospital')||lowerInput.includes('location')) {
+      return "Medisco Hospital is located at 123 Health Street, Medical City. Here are directions: https://maps.app.goo.gl/MwBnmwnMEiEzxVKu9";
+    }
     if (lowerInput.includes('hi') || lowerInput.includes('hello') || lowerInput.includes('hey')) {
       const greetings = userName 
         ? [
             `Hello again, ${userName}! How can I help you today?`,
             `Nice to see you back, ${userName}! What can I do for you?`,
-            `Hey ${userName}! Need any assistance today?`
+            `Hey ${userName}! Need any assistance today?`,
+            `Good day$ {userName}! How can I be of service to you?`,
+            `Hi ${userName}! What brings you here today?`
           ]
         : [
             "Hello there! How can I assist you today?",
             "Hi! What can I do for you today?",
-            "Hey! How may I help you?"
+            "Hey! How may I help you?",
+            "Good day! How can I be of service to you?",
+            "Hi there! What brings you here today?"
           ];
 
       return greetings[Math.floor(Math.random() * greetings.length)];
@@ -289,6 +366,7 @@ const App = () => {
     return null;
   };
 
+  // When saving & fetching
   // Main message handler
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -326,6 +404,84 @@ const App = () => {
 
       let botResponse;
 
+      ///////////////
+
+
+      if (teachingMode.active) {
+        // Store the answer
+        try {
+    const response = await axios.post('http://localhost:5000/api/learned-facts', {
+    question: teachingMode.currentQuestion,
+    answer: userInput
+});
+    
+    const thankYouMessage = {
+        text: `Thanks! I've learned that the answer to "${teachingMode.currentQuestion}" is "${userInput}".`,
+        sender: 'bot'
+    };
+    setMessages(prev => [...prev, thankYouMessage]);
+} catch (error) {
+    console.error('Error saving knowledge:', {
+        error: error.response?.data || error.message,
+        status: error.response?.status,
+        config: error.config
+    });
+    const cleanQuestion = userInput.trim().toLowerCase().replace(/\?+$/, '');
+    const errorMessage = {
+        text: `I couldn't save that information. Error: ${error.response?.data?.error || error.message}`,
+        sender: 'bot'
+    };
+    setMessages(prev => [...prev, errorMessage]);
+}
+        setTeachingMode({ active: false, currentQuestion: '' });
+        return;
+    }
+
+    // Check for known facts
+    // Check for known facts
+if (userInput.toLowerCase().endsWith('?')) {
+    const cleanQuestion = userInput.toLowerCase().trim().replace(/\?+$/, '');
+    console.log('Frontend clean question:', cleanQuestion);
+    
+    try {
+        const response = await axios.get('http://localhost:5000/api/learned-facts', {
+    params: { question: cleanQuestion }
+});
+        
+        console.log('Backend response:', response.data);
+        
+        if (response.data?.answer) {
+            const answerMessage = {
+                text: `The answer is: ${response.data.answer}`,
+                sender: 'bot'
+            };
+            setMessages(prev => [...prev, answerMessage]);
+            return;
+        }
+    } catch (error) {
+        console.error('Error details:', {
+            message: error.message,
+            response: error.response?.data,
+            config: error.config
+        });
+    }
+
+    // Only proceed to teaching mode if no answer was found
+    const teachMeMessage = {
+        text: "I don't know the answer to that. Can you teach me? Please provide the answer.",
+        sender: 'bot'
+    };
+    setMessages(prev => [...prev, teachMeMessage]);
+    setTeachingMode({
+        active: true,
+        currentQuestion: userInput
+    });
+    return;
+}
+
+
+      // Example: Inside your chat component
+
       // Handle small talk first
       const smallTalkResponse = handleSmallTalk(userInput);
       if (smallTalkResponse) {
@@ -345,11 +501,17 @@ const App = () => {
       }
 
       // Handle available doctors query
-      if (userInput.toLowerCase().includes('available doctors') || 
+       if (userInput.toLowerCase().includes('available doctors') || 
           userInput.toLowerCase().includes('doctors available')) {
         await handleAvailableDoctorsQuery();
         return;
-      }
+      } 
+      if (userInput.toLowerCase().includes('all doctors') || 
+          userInput.toLowerCase().includes('all doctors available')) {
+        await showAllDoctors();
+        return;
+      } 
+
 
       // Handle appointment recall
       if (userInput.toLowerCase().includes('when is my appointment') || 
@@ -371,14 +533,16 @@ const App = () => {
       }
 
       // Handle doctor availability queries
-      const doctorAvailabilityMatch = userInput.match(/(?:is\s+)?dr\.?\s*(\w+)\s+(available|free)\s*(today|tomorrow|\w+day)?/i);
-      if (doctorAvailabilityMatch) {
-        const doctorName = doctorAvailabilityMatch[1];
-        const day = doctorAvailabilityMatch[3] || 'today';
-        await handleDoctorAvailabilityQuery(doctorName, day);
-        return;
-      }
+      const doctorAvailabilityMatch = userInput.match(
+  /(?:is\s+)?(?:dr\.?|doctor)?\s*(\w+)\s+(?:available|free)\s*(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)?/i
+);
 
+if (doctorAvailabilityMatch) {
+  const doctorName = doctorAvailabilityMatch[1];
+  const day = doctorAvailabilityMatch[2]?.toLowerCase() || 'today';
+  await handleDoctorAvailabilityQuery(doctorName, day);
+  return;
+}
       // Handle best specialist queries
       if (userInput.toLowerCase().includes('best') && userInput.toLowerCase().match(/(neurologist|cardiologist|pediatrician|orthopedic)/i)) {
         const specialtyMatch = userInput.match(/(neurologist|cardiologist|pediatrician|orthopedic)/i);
@@ -432,16 +596,17 @@ const App = () => {
         botResponse = { text: response.data[0].answer, sender: 'bot' };
         setIrrelevantCount(0);
       }
+       else if (userInput.toLowerCase().includes('emergency') || userInput.toLowerCase().includes('emergency room')) {
+        const response = await axios.get('http://localhost:5000/api/faqs?category=navigation');
+        botResponse = { text: response.data[0].answer, sender: 'bot' };
+        setIrrelevantCount(0);
+      }
       else if (userInput.toLowerCase().includes('bill') || userInput.toLowerCase().includes('payment') || userInput.toLowerCase().includes('insurance')) {
         const response = await axios.get('http://localhost:5000/api/faqs?category=billing');
         botResponse = { text: response.data[0].answer, sender: 'bot' };
         setIrrelevantCount(0);
       }
-      else if (userInput.toLowerCase().includes('emergency') || userInput.toLowerCase().includes('location') || userInput.toLowerCase().includes('where')) {
-        const response = await axios.get('http://localhost:5000/api/faqs?category=navigation');
-        botResponse = { text: response.data[0].answer, sender: 'bot' };
-        setIrrelevantCount(0);
-      }
+      
       else {
         const irrelevantKeywords = ['sports', 'movie', 'music', 'weather', 'joke', 'game'];
         const isIrrelevant = irrelevantKeywords.some(keyword => userInput.toLowerCase().includes(keyword));
@@ -467,7 +632,7 @@ const App = () => {
             setCurrentEmotion('angry');
           }
         } else {
-          botResponse = { text: 'I can help with appointments, doctor information, symptoms checking, and general hospital information. What do you need?', sender: 'bot' };
+          botResponse = { text: 'i am here to help with edisco ', sender: 'bot' };
           setIrrelevantCount(0);
         }
       }
@@ -502,76 +667,70 @@ const App = () => {
   };
 
   // Doctor availability query handler
-  const handleAvailableDoctorsQuery = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/doctors/availability', {
-        params: { day: 'today' }
-      });
-      
-      if (response.data.length === 0) {
-        const allDoctorsResponse = await axios.get('http://localhost:5000/api/doctors');
-        let message = "Here are all our doctors:\n\n";
-        
-        allDoctorsResponse.data.forEach(doctor => {
-          message += `👨‍⚕️ ${doctor.name}\n`;
-          message += `🏥 ${doctor.specialization}\n`;
-          message += `📅 Available days: ${doctor.available_days}\n`;
-          message += `⏰ Usually available at: ${doctor.available_times}\n\n`;
-        });
-        
-        const botMessage = { text: message, sender: 'bot' };
-        setMessages(prev => [...prev, botMessage]);
-        updateEmotion(botMessage);
-        return;
-      }
+const handleAvailableDoctorsQuery = async () => {
+  const fallbackMessage = { text: "", sender: 'bot' };
 
-      let message = "Here are today's available doctors:\n\n";
-      response.data.forEach(doctor => {
-        if (doctor.isAvailable) {
-          message += `👨‍⚕️ ${doctor.name}\n`;
-          message += `🏥 Specialty: ${doctor.specialization}\n`;
-          message += `⏰ Available time slots: ${doctor.availableTimes.join(', ')}\n\n`;
-        }
-      });
-      
-      if (!message.includes('👨‍⚕️')) {
-        message = "No doctors are available today. Here are all our doctors:\n\n";
-        const allDoctorsResponse = await axios.get('http://localhost:5000/api/doctors');
-        allDoctorsResponse.data.forEach(doctor => {
-          message += `👨‍⚕️ ${doctor.name}\n`;
-          message += `🏥 ${doctor.specialization}\n`;
-          message += `📅 Available days: ${doctor.available_days}\n\n`;
-        });
-      } else {
-        message += "To book an appointment, say 'Book with [name]' or click the appointment button.";
-      }
-
-      const botMessage = { text: message, sender: 'bot' };
-      setMessages(prev => [...prev, botMessage]);
-      updateEmotion(botMessage);
-    } catch (error) {
-      console.error('Error fetching available doctors:', error);
-      const errorMessage = { 
-        text: "I'm having trouble checking doctor availability. Here are all our doctors:",
-        sender: 'bot' 
-      };
-      setMessages(prev => [...prev, errorMessage]);
-      
-      // Fallback to showing all doctors
-      const allDoctorsResponse = await axios.get('http://localhost:5000/api/doctors');
-      let doctorList = "Our doctors:\n";
-      allDoctorsResponse.data.forEach(doctor => {
-        doctorList += `\n- ${doctor.name} (${doctor.specialization})`;
-      });
-      
-      const doctorListMessage = { text: doctorList, sender: 'bot' };
-      setMessages(prev => [...prev, doctorListMessage]);
-      updateEmotion(doctorListMessage);
+  try {
+    // Try to get available doctors first
+    const response = await axios.get('http://localhost:5000/api/doctors/availability', {
+      params: { day: 'today' }
+    });
+    
+    if (response.data.length === 0 || !response.data.some(doctors => doctors.isAvailable)) {
+      // No available doctors, show all doctors
+      return await showAllDoctors("No doctors are available today. Here are all our doctors:");
     }
-  };
+
+    // Build available doctors message
+    let message = "Here are today's available doctors:\n\n";
+    response.data.forEach(doctors => {
+      if (doctors.isAvailable) {
+        message += `👨‍⚕️ ${doctors.name}\n`;
+        message += `🏥 Specialty: ${doctors.specialization}\n`;
+        message += `⏰ Available times: ${doctors.available_times}\n`;
+      }
+    });
+    
+    message += "To book an appointment, say 'Book' or click the appointment button.";
+    sendBotMessage(message);
+    
+  } catch (error) {
+    console.error('Error fetching available doctors:', error);
+    await showAllDoctors("I'm having trouble checking doctor availability. Here are all our doctors:");
+  }
+};
+
+// Helper functions
+const showAllDoctors = async (introMessage) => {
+  try {
+    const response = await axios.get('http://localhost:5000/api/doctors');
+    let message = introMessage + "\n\n";
+    
+    response.data.forEach(doctors => {
+      message += `👨‍⚕️ ${doctors.name}\n`;
+      message += `🏥 ${doctors.specialization}\n`;
+      message += `📅 Available days: ${doctors.available_days}\n`;
+      if (doctors.available_times) {
+        message += `⏰ Usually available at: ${doctors.available_times}\n`;
+      }
+      message += `\n`;
+    });
+    
+    sendBotMessage(message);
+  } catch (error) {
+    console.error('Error fetching all doctors:', error);
+    sendBotMessage("I'm unable to retrieve the doctor list at the moment. Please try again later.");
+  }
+};
+
+const sendBotMessage = (text) => {
+  const botMessage = { text, sender: 'bot' };
+  setMessages(prev => [...prev, botMessage]);
+  updateEmotion(botMessage);
+};
 
   // Doctor availability query handler
-  const handleDoctorAvailabilityQuery = async (doctorName, day) => {
+  const handleDoctorAvailabilityQuery = async (doctorName, day = 'today') => {
     try {
       const response = await axios.get('http://localhost:5000/api/doctors/availability', {
         params: { name: doctorName, day }
@@ -579,7 +738,7 @@ const App = () => {
 
       if (response.data.length === 0) {
         const notFoundMessage = { 
-          text: `Sorry, I couldn't find information about ${doctorName}.`, 
+          text: `Sorry, I couldn't find ${doctorName}. Would you like to see all doctors?`, 
           sender: 'bot' 
         };
         setMessages(prev => [...prev, notFoundMessage]);
@@ -588,15 +747,18 @@ const App = () => {
       }
 
       const doctor = response.data[0];
-      let message = `Dr. ${doctor.name} (${doctor.specialization}) is `;
+      let message = `${doctor.name} (${doctor.specialization}) is `;
       message += doctor.isAvailable ? 'available' : 'not available';
-      message += ` ${day}. `;
+      message += ` on ${day}.`;
       
       if (doctor.isAvailable) {
-        message += `Available times: ${doctor.availableTimes.join(', ')}. `;
-        message += `Would you like to book an appointment?`;
+        // Handle both array and string formats for availableTimes
+        const times = Array.isArray(doctor.availableTimes) 
+          ? doctor.availableTimes.join(', ')
+          : doctor.available_times || 'Not specified';
+          
+        message += `\nAvailable times: ${times}.`;
         
-        // Update appointment data
         setAppointmentData(prev => ({
           ...prev,
           doctorId: doctor.id,
@@ -610,13 +772,13 @@ const App = () => {
     } catch (error) {
       console.error('Error checking doctor availability:', error);
       const errorMessage = { 
-        text: 'Sorry, I encountered an error checking availability. Please try again later.', 
+        text: 'Sorry, I encountered an error. You can try asking "Show all doctors" or try again later.', 
         sender: 'bot' 
       };
       setMessages(prev => [...prev, errorMessage]);
-      setCurrentEmotion('angry');
+      updateEmotion({ text: errorMessage.text, sender: 'bot', emotion: 'angry' });
     }
-  };
+};
 
   // Best specialist query handler
   const handleBestSpecialistQuery = async (specialty) => {
@@ -630,7 +792,7 @@ const App = () => {
         const bestDoctor = specialists[0];
         let responseMessage = `Our ${specialty} is ${bestDoctor.name}\n`;
         responseMessage += `Available: ${bestDoctor.available_days} at ${bestDoctor.available_times}\n`;
-        responseMessage += `Would you like to book an appointment?`;
+       
         
         const botMessage = { text: responseMessage, sender: 'bot' };
         setMessages(prev => [...prev, botMessage]);
@@ -670,9 +832,9 @@ const App = () => {
       case 'email':
         message = { text: 'You can email our doctors at doctors@mediscohospital.com', sender: 'bot' };
         break;
-      case 'directions':
+       case 'directions':
         message = { text: 'Medisco Hospital is located at 123 Health Street, Medical City. Here are directions: https://maps.app.goo.gl/MwBnmwnMEiEzxVKu9', sender: 'bot' };
-        break;
+        break; 
       default:
         return;
     }
@@ -806,7 +968,7 @@ const App = () => {
     try {
       if (!appointmentData.email && !userName) {
         const errorMessage = { 
-          text: "I don't have your information. Please provide your email or name to check appointments.", 
+          text: "I don't have your information.", 
           sender: 'bot' 
         };
         setMessages(prev => [...prev, errorMessage]);
